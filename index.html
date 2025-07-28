@@ -2,49 +2,135 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>My First Website</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulated Python+Bash Shell</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      color: #333;
-      margin: 0;
+      background-color: #111;
+      color: #0f0;
+      font-family: monospace;
       padding: 20px;
     }
-    header {
-      background-color: #007BFF;
-      color: white;
-      padding: 10px 20px;
+    #terminal {
+      background-color: #000;
+      border: 1px solid #333;
+      padding: 10px;
+      height: 400px;
+      overflow-y: scroll;
+      white-space: pre-wrap;
     }
-    h1 {
-      margin: 0;
-    }
-    main {
-      margin-top: 20px;
-    }
-    footer {
-      margin-top: 40px;
-      text-align: center;
-      color: #777;
-      font-size: 14px;
+    #input {
+      width: 100%;
+      background-color: #111;
+      color: #0f0;
+      border: none;
+      font-family: monospace;
+      font-size: 16px;
+      outline: none;
     }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Welcome to My Website</h1>
-</header>
+<h2>Python+Bash Shell (Simulated)</h2>
+<div id="terminal"></div>
+<input id="input" autocomplete="off" autofocus />
 
-<main>
-  <p>This is a basic webpage created with HTML and CSS.</p>
-  <p>You can add more sections, images, links, and style it however you'd like!</p>
-</main>
+<script>
+  let terminal = document.getElementById('terminal');
+  let input = document.getElementById('input');
+  let pyodide;
+  let cwd = '/';
+  let fs = {
+    '/': ['home', 'bin', 'file.txt'],
+    '/home': ['user', 'notes.md'],
+    '/home/user': ['script.py'],
+    '/bin': ['ls', 'cd', 'pwd'],
+  };
 
-<footer>
-  &copy; 2025 Your Name
-</footer>
+  function printToTerminal(text) {
+    terminal.innerHTML += text + "\n";
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function prompt() {
+    printToTerminal(`\n${cwd} $ `);
+  }
+
+  function resolvePath(path) {
+    if (path.startsWith('/')) return path;
+    if (cwd === '/') return '/' + path;
+    return cwd + '/' + path;
+  }
+
+  function handleBashCommand(command) {
+    const [cmd, ...args] = command.split(" ");
+    switch (cmd) {
+      case 'pwd':
+        printToTerminal(cwd);
+        break;
+      case 'ls': {
+        const path = args[0] ? resolvePath(args[0]) : cwd;
+        if (fs[path]) {
+          printToTerminal(fs[path].join("  "));
+        } else {
+          printToTerminal(`ls: cannot access '${path}': No such directory`);
+        }
+        break;
+      }
+      case 'cd': {
+        const path = args[0] ? resolvePath(args[0]) : '/';
+        if (fs[path]) {
+          cwd = path;
+        } else {
+          printToTerminal(`cd: no such file or directory: ${args[0]}`);
+        }
+        break;
+      }
+      case 'help':
+        printToTerminal("Commands: ls, cd, pwd, help, and Python code");
+        break;
+      default:
+        return false; // Not a bash command
+    }
+    return true;
+  }
+
+  async function runCommand(command) {
+    printToTerminal(`${cwd} $ ${command}`);
+    if (handleBashCommand(command)) {
+      prompt();
+      return;
+    }
+
+    // Try Python via Pyodide
+    try {
+      let result = await pyodide.runPythonAsync(command);
+      if (result !== undefined) printToTerminal(result);
+    } catch (err) {
+      printToTerminal("Error: " + err);
+    }
+    prompt();
+  }
+
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const command = input.value.trim();
+      input.value = "";
+      runCommand(command);
+    }
+  });
+
+  async function startShell() {
+    printToTerminal("Loading Python + Simulated Bash...");
+    pyodide = await loadPyodide();
+    printToTerminal("Shell ready. Type `help` to see commands.");
+    prompt();
+  }
+
+  startShell();
+</script>
 
 </body>
 </html>
+
