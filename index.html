@@ -1,136 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Simulated Python+Bash Shell</title>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simulated Bash Terminal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
   <style>
     body {
-      background-color: #111;
-      color: #0f0;
+      margin: 0;
+      background: #1e1e1e;
+      color: #fff;
       font-family: monospace;
-      padding: 20px;
     }
     #terminal {
-      background-color: #000;
-      border: 1px solid #333;
-      padding: 10px;
-      height: 400px;
-      overflow-y: scroll;
-      white-space: pre-wrap;
-    }
-    #input {
-      width: 100%;
-      background-color: #111;
-      color: #0f0;
-      border: none;
-      font-family: monospace;
-      font-size: 16px;
-      outline: none;
+      height: 100vh;
+      width: 100vw;
     }
   </style>
 </head>
 <body>
+  <div id="terminal"></div>
 
-<h2>Python+Bash Shell (Simulated)</h2>
-<div id="terminal"></div>
-<input id="input" autocomplete="off" autofocus />
+  <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+  <script>
+    const term = new Terminal();
+    term.open(document.getElementById('terminal'));
+    term.write('Welcome to Simulated Bash!\r\n');
+    term.write('$ ');
 
-<script>
-  let terminal = document.getElementById('terminal');
-  let input = document.getElementById('input');
-  let pyodide;
-  let cwd = '/';
-  let fs = {
-    '/': ['home', 'bin', 'file.txt'],
-    '/home': ['user', 'notes.md'],
-    '/home/user': ['script.py'],
-    '/bin': ['ls', 'cd', 'pwd'],
-  };
+    let command = '';
+    term.onKey(e => {
+      const char = e.key;
 
-  function printToTerminal(text) {
-    terminal.innerHTML += text + "\n";
-    terminal.scrollTop = terminal.scrollHeight;
-  }
-
-  function prompt() {
-    printToTerminal(`\n${cwd} $ `);
-  }
-
-  function resolvePath(path) {
-    if (path.startsWith('/')) return path;
-    if (cwd === '/') return '/' + path;
-    return cwd + '/' + path;
-  }
-
-  function handleBashCommand(command) {
-    const [cmd, ...args] = command.split(" ");
-    switch (cmd) {
-      case 'pwd':
-        printToTerminal(cwd);
-        break;
-      case 'ls': {
-        const path = args[0] ? resolvePath(args[0]) : cwd;
-        if (fs[path]) {
-          printToTerminal(fs[path].join("  "));
-        } else {
-          printToTerminal(`ls: cannot access '${path}': No such directory`);
+      if (e.domEvent.key === 'Enter') {
+        term.write('\r\n');
+        runCommand(command);
+        command = '';
+        term.write('\r\n$ ');
+      } else if (e.domEvent.key === 'Backspace') {
+        if (command.length > 0) {
+          command = command.slice(0, -1);
+          term.write('\b \b');
         }
-        break;
+      } else {
+        command += char;
+        term.write(char);
       }
-      case 'cd': {
-        const path = args[0] ? resolvePath(args[0]) : '/';
-        if (fs[path]) {
-          cwd = path;
-        } else {
-          printToTerminal(`cd: no such file or directory: ${args[0]}`);
-        }
-        break;
+    });
+
+    function runCommand(cmd) {
+      switch (cmd.trim()) {
+        case 'help':
+          term.write('Available commands: help, echo, date, clear');
+          break;
+        case 'date':
+          term.write(new Date().toString());
+          break;
+        case 'clear':
+          term.clear();
+          break;
+        default:
+          if (cmd.startsWith('echo ')) {
+            term.write(cmd.slice(5));
+          } else if (cmd.trim() === '') {
+            // do nothing
+          } else {
+            term.write(`Command not found: ${cmd}`);
+          }
       }
-      case 'help':
-        printToTerminal("Commands: ls, cd, pwd, help, and Python code");
-        break;
-      default:
-        return false; // Not a bash command
     }
-    return true;
-  }
-
-  async function runCommand(command) {
-    printToTerminal(`${cwd} $ ${command}`);
-    if (handleBashCommand(command)) {
-      prompt();
-      return;
-    }
-
-    // Try Python via Pyodide
-    try {
-      let result = await pyodide.runPythonAsync(command);
-      if (result !== undefined) printToTerminal(result);
-    } catch (err) {
-      printToTerminal("Error: " + err);
-    }
-    prompt();
-  }
-
-  input.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      const command = input.value.trim();
-      input.value = "";
-      runCommand(command);
-    }
-  });
-
-  async function startShell() {
-    printToTerminal("Loading Python + Simulated Bash...");
-    pyodide = await loadPyodide();
-    printToTerminal("Shell ready. Type `help` to see commands.");
-    prompt();
-  }
-
-  startShell();
-</script>
-
+  </script>
 </body>
 </html>
 
